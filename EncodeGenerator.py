@@ -1,98 +1,56 @@
-# EncoderGenerator.py
-
-import os
-import cv2
+from supabase import create_client
 import face_recognition
+import cv2
+import os
 import pickle
-from supabase import create_client, Client
+from dotenv import load_dotenv
 
-# ✅ Supabase config
-url = "https://daqnmrsardrtjqilyzsi.supabase.co"
-key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhcW5tcnNhcmRydGpxaWx5enNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA1MTQ1MDEsImV4cCI6MjA2NjA5MDUwMX0.Hfqvjs-ZxowpMtvP38QeHtefhiyKt0er7IEMLNyqVuc"
-supabase: Client = create_client(url, key)
+# Load Supabase credentials
+load_dotenv()
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ✅ Local image folder
-folderPath = "Images1"
-pathList = os.listdir(folderPath)
-print(pathList)
+# Define local image folder
+IMAGE_FOLDER = "Images1"
+BUCKET_NAME = "student-image"
 
-imgList = []
+# Create image folder if it doesn't exist
+os.makedirs(IMAGE_FOLDER, exist_ok=True)
+
+# Download all student images from Supabase Storage
+print("📥 Downloading images from Supabase...")
+files = supabase.storage.from_(BUCKET_NAME).list()
+for file in files:
+    file_name = file['name']
+    file_path = os.path.join(IMAGE_FOLDER, file_name)
+    
+    # Skip if already exists (optional, can force update)
+    if not os.path.exists(file_path):
+        data = supabase.storage.from_(BUCKET_NAME).download(file_name)
+        with open(file_path, "wb") as f:
+            f.write(data)
+print("✅ All images downloaded.\n")
+
+# Encode faces
+print("🔍 Encoding faces...")
+encodeList = []
 studentIds = []
 
-for path in pathList:
-    # Read & encode
-    imgList.append(cv2.imread(os.path.join(folderPath, path)))
-    studentIds.append(os.path.splitext(path)[0])
-
-    # ✅ Upload image to Supabase Storage
-    fileName = f'{folderPath}/{path}'
-    with open(fileName, "rb") as f:
-        res = supabase.storage.from_("student-image").upload(path, f)
-        print(f"Uploaded {path} | Response: {res}")
-
-def findEncodings(imagesList):
-    encodeList = []
-    for img in imagesList:
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        encode = face_recognition.face_encodings(img)[0]
-        encodeList.append(encode)
-    return encodeList
-
-print("Encoding Started ..")
-encodeListKnown = findEncodings(imgList)
-encodeListKnownWithIds = [encodeListKnown, studentIds]
-print("Encoding Complete")
-
-file = open("EncodeFile.p", 'wb')
-pickle.dump(encodeListKnownWithIds, file)
-file.close()
-
-
-# import os
-# import cv2
-# import face_recognition_models
-# import face_recognition
-# import pickle
-# from supabase import create_client, Client
-# import supabase
-# from supabase.client import ClientOptions
-
-# url="https://daqnmrsardrtjqilyzsi.supabase.co"
-# key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRhcW5tcnNhcmRydGpxaWx5enNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA1MTQ1MDEsImV4cCI6MjA2NjA5MDUwMX0.Hfqvjs-ZxowpMtvP38QeHtefhiyKt0er7IEMLNyqVuc"
-# supabase: Client = create_client(  url,  key)
-
-# # Importing student images 
-# folderPath ="Images1"
-# pathList=os.listdir(folderPath)
-# print(pathList)
-# imgList=[]
-# studentIds=[]
-# for path in pathList:
-#     imgList.append(cv2.imread(os.path.join(folderPath, path)))
-#     studentIds.append(os.path.splitext(path)[0])  
+for img_name in os.listdir(IMAGE_FOLDER):
+    img_path = os.path.join(IMAGE_FOLDER, img_name)
+    img = cv2.imread(img_path)
+    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    encodings = face_recognition.face_encodings(img_rgb)
     
-#     fileName=os.path.join(folderPath, path)
-#     bucket=supabase.storage.bucket()
-#     blob=bucket.blob(fileName)
-#     blob.upload_from_filename(fileName)
-#     #print(path)
-#     #print(os.path.splitext(path)[0]) # Extracting the name from the file name - 0th index
-# # print(studentIds)
+    if encodings:
+        encodeList.append(encodings[0])
+        studentIds.append(os.path.splitext(img_name)[0])
+    else:
+        print(f"⚠️ No face found in {img_name}")
 
-# def findEncodings(imgagesList):
-#     encodeList = []
-#     for img in imgagesList:
-#         img=cv2.cvtColor(img,cv2.COLOR_BGR2RGB)
-#         encode=face_recognition.face_encodings(img)[0]
-#         encodeList.append(encode)
-#     return encodeList
+# Save encoding file
+with open("EncodeFile.p", "wb") as f:
+    pickle.dump((encodeList, studentIds), f)
 
-# print("Encoding Started ..")
-# encodeListKnown = findEncodings(imgList)
-# encodeListKnownWithIds=[encodeListKnown, studentIds ]
-# #print(encodeListKnown)
-# print("Encoding Complete")
-
-# file=open("EncodeFile.p", 'wb')
-# pickle.dump(encodeListKnownWithIds, file)
-# file.close()
+print(f"✅ Encoding complete. Total students: {len(studentIds)}")

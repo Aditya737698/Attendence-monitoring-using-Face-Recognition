@@ -1,0 +1,21 @@
+{
+  "name": "facerecognition",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aditya737698/Attendence-monitoring-using-Face-Recognition.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Aditya737698/Attendence-monitoring-using-Face-Recognition/issues"
+  },
+  "homepage": "https://github.com/Aditya737698/Attendence-monitoring-using-Face-Recognition#readme"
+}

@@ -8,3 +8,5 @@ dlib==19.24.6
 streamlit==1.35.0
 imutils==0.5.4
 python-dotenv
+plotly
+pandas
